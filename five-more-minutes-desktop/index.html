@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five More Minutes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: timer ring on the left, the ask ladder, break rule and today's log on the right; stacks on phones. */
+:root {
+  --bg: #EDF0F5;
+  --surface: #FFFFFF;
+  --ink: #101828;
+  --muted: #566176;
+  --line: #D5DBE6;
+  --line-strong: #AEB7C9;
+  --track: #DDE2EC;
+  --work: #2B45F5;
+  --work-ink: #FFFFFF;
+  --rest: #0B8763;
+  --rest-ink: #FFFFFF;
+  --font-display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C111C;
+    --surface: #141B2B;
+    --ink: #E8ECF6;
+    --muted: #98A3B9;
+    --line: #26304A;
+    --line-strong: #3C4868;
+    --track: #222C45;
+    --work: #8B9CFF;
+    --work-ink: #0C111C;
+    --rest: #4FD3A2;
+    --rest-ink: #06251B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C111C;
+  --surface: #141B2B;
+  --ink: #E8ECF6;
+  --muted: #98A3B9;
+  --line: #26304A;
+  --line-strong: #3C4868;
+  --track: #222C45;
+  --work: #8B9CFF;
+  --work-ink: #0C111C;
+  --rest: #4FD3A2;
+  --rest-ink: #06251B;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-block: clamp(20px, 4vw, 48px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  min-height: 100%;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: clamp(20px, 3vw, 32px); }
+
+.top h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.1rem, 6vw, 3.4rem);
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  margin: 0 0 10px;
+  text-wrap: balance;
+}
+.top p { margin: 0; color: var(--muted); max-width: 54ch; text-wrap: pretty; }
+
+.app {
+  --phase: var(--work);
+  --phase-ink: var(--work-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 36px);
+  align-items: start;
+}
+.app[data-phase="break"], .app[data-phase="breakDone"] {
+  --phase: var(--rest);
+  --phase-ink: var(--rest-ink);
+}
+
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: clamp(20px, 4vw, 36px);
+  display: grid;
+  gap: 20px;
+  justify-items: center;
+  min-width: 0;
+}
+.ringwrap { position: relative; width: min(100%, 340px); aspect-ratio: 1; max-width: 100%; }
+.ringwrap svg { width: 100%; height: 100%; display: block; }
+.ring-track { fill: none; stroke: var(--track); stroke-width: 10; }
+.ring-prog {
+  fill: none; stroke: var(--phase); stroke-width: 10; stroke-linecap: round;
+  transform: rotate(-90deg); transform-origin: 120px 120px;
+  transition: stroke-dashoffset .25s linear, stroke .3s;
+}
+.ring-mark { fill: var(--surface); stroke: var(--phase); stroke-width: 3; transition: stroke .3s; }
+.center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.label {
+  font-family: var(--font-mono); font-weight: 700; font-size: .78rem;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--phase);
+}
+.time {
+  font-family: var(--font-mono); font-weight: 700;
+  font-size: clamp(2.8rem, 13vw, 4.2rem);
+  letter-spacing: -0.03em; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.meter {
+  margin: 0; min-height: 1.5em; text-align: center;
+  font-family: var(--font-mono); font-size: .8rem; color: var(--muted);
+  font-variant-numeric: tabular-nums; text-wrap: balance;
+}
+
+.prompt {
+  width: 100%;
+  display: grid; gap: 12px;
+  padding: 18px;
+  border: 1.5px solid var(--phase);
+  border-radius: 12px;
+  background: var(--surface);
+  background: color-mix(in srgb, var(--phase) 8%, var(--surface));
+}
+.prompt .q {
+  font-family: var(--font-display); font-weight: 650; font-size: 1.6rem;
+  line-height: 1.15; letter-spacing: -0.01em; margin: 0; text-wrap: balance;
+}
+.prompt .sub { margin: 0; color: var(--muted); font-size: .92rem; }
+.prompt .timer { margin: 0; font-family: var(--font-mono); font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.btn {
+  font-family: var(--font-body); font-weight: 600; font-size: 15px;
+  min-height: 44px; padding: 10px 20px; border-radius: 10px;
+  border: 1px solid var(--line-strong); background: transparent; color: var(--ink);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--phase); color: var(--phase-ink); border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:focus-visible, input:focus-visible { outline: 3px solid var(--phase); outline-offset: 2px; }
+.prompt .actions { justify-content: flex-start; }
+
+.side { min-width: 0; }
+.side section + section { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 22px; }
+.side h2 {
+  margin: 0 0 12px;
+  font-family: var(--font-mono); font-weight: 700; font-size: .75rem;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.side p { margin: 0; color: var(--muted); font-size: .95rem; max-width: 52ch; text-wrap: pretty; }
+.side p strong { color: var(--ink); font-weight: 600; }
+
+.ladder { list-style: none; margin: 0; padding: 0; }
+.rung {
+  display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) auto;
+  align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.rung:last-child { border-bottom: 0; }
+.rung-n {
+  font-family: var(--font-display); font-weight: 700; font-size: 2.2rem; line-height: 1;
+  letter-spacing: -0.03em; color: var(--line-strong);
+}
+.rung-n small { font-family: var(--font-mono); font-size: .7rem; font-weight: 500; letter-spacing: 0; margin-left: 3px; }
+.rung-t { font-weight: 600; font-size: .98rem; }
+.rung-t em { display: block; font-style: normal; font-weight: 400; color: var(--muted); font-size: .88rem; }
+.now {
+  display: none; margin-left: 8px; vertical-align: 2px;
+  font-family: var(--font-mono); font-size: .66rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--phase-ink); background: var(--phase); padding: 2px 7px; border-radius: 4px;
+}
+.rung[data-state="current"] .rung-n { color: var(--phase); }
+.rung[data-state="current"] .now { display: inline-block; }
+.rung[data-state="done"] .rung-n { color: var(--muted); }
+.rung[data-state="done"] .rung-t { color: var(--muted); }
+.pips { display: flex; gap: 6px; }
+.pips i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); display: block; transition: background .2s, border-color .2s; }
+.pips i.on { background: var(--phase); border-color: var(--phase); }
+
+#log { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+#log li {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 9px 0; border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: .82rem; font-variant-numeric: tabular-nums;
+}
+#log li span:first-child { color: var(--muted); }
+#logSum { margin-top: 10px; font-family: var(--font-mono); font-size: .8rem; color: var(--ink); }
+
+.settings { display: grid; gap: 12px; }
+.settings label { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: start; font-size: .95rem; font-weight: 500; cursor: pointer; }
+.settings input { margin: 3px 0 0; width: 18px; height: 18px; accent-color: var(--work); }
+.settings small { grid-column: 2; color: var(--muted); font-weight: 400; font-size: .84rem; }
+
+@media (max-width: 800px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring-prog, .ring-mark, .pips i { transition: none; }
+}
+
+html { color-scheme: light; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Five more minutes</h1>
+    <p>Start with five. At four minutes you get asked if you can do five more. Say yes and the block grows. Say no and you earn a break.</p>
+  </header>
+
+  <main class="app" id="app" data-phase="idle">
+    <section class="stage" aria-label="Timer">
+      <div class="ringwrap">
+        <svg viewBox="0 0 240 240" aria-hidden="true">
+          <circle class="ring-track" cx="120" cy="120" r="104"></circle>
+          <circle class="ring-prog" id="ringProg" cx="120" cy="120" r="104"></circle>
+          <circle class="ring-mark" id="ringMark" cx="120" cy="16" r="6"></circle>
+        </svg>
+        <div class="center">
+          <span class="label" id="label">Ready</span>
+          <span class="time" id="time">05:00</span>
+        </div>
+      </div>
+      <p class="meter" id="meter"></p>
+
+      <div class="prompt" id="prompt" role="alert" hidden>
+        <p class="q" id="promptQ">Can you do 5 more minutes?</p>
+        <p class="sub" id="promptSub"></p>
+        <div class="actions">
+          <button class="btn primary" id="btnYes" type="button">Yes, add 5 minutes</button>
+          <button class="btn" id="btnNo" type="button">No, I'm done</button>
+        </div>
+        <p class="timer" id="promptTimer"></p>
+      </div>
+
+      <div class="actions" id="actions">
+        <button class="btn primary" id="btnStart" type="button">Start 5 minutes</button>
+        <button class="btn" id="btnPause" type="button" hidden>Pause</button>
+        <button class="btn" id="btnStop" type="button" hidden>Stop and take my break</button>
+        <button class="btn" id="btnSkip" type="button" hidden>Skip break</button>
+        <button class="btn primary" id="btnAgain" type="button" hidden>Start another 5 minutes</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section aria-labelledby="hAsks">
+        <h2 id="hAsks">How the asks grow</h2>
+        <ol class="ladder" id="ladder">
+          <li class="rung" data-step="5">
+            <span class="rung-n">5<small>min</small></span>
+            <span class="rung-t">Asks for 5 more<b class="now">now</b><em>Two yeses in a row raise it to 10.</em></span>
+            <span class="pips" aria-hidden="true"><i></i><i></i></span>
+          </li>
+          <li class="rung" data-step="10">
+            <span class="rung-n">10<small>min</small></span>
+            <span class="rung-t">Asks for 10 more<b class="now">now</b><em>Two yeses in a row raise it to 15.</em></span>
+            <span class="pips" aria-hidden="true"><i></i><i></i></span>
+          </li>
+          <li class="rung" data-step="15">
+            <span class="rung-n">15<small>min</small></span>
+            <span class="rung-t">Asks for 15 more<b class="now">now</b><em>Stays at 15 until you say no.</em></span>
+            <span class="pips" aria-hidden="true"></span>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="hBreak">
+        <h2 id="hBreak">Your break</h2>
+        <p>When you say no, the break is <strong>25% of the time you focused</strong>. Twenty minutes of work earns five minutes of rest. Say no at the prompt and you still finish the minute you committed to.</p>
+      </section>
+
+      <section aria-labelledby="hToday">
+        <h2 id="hToday">Today</h2>
+        <p id="logEmpty">No sessions yet. Your finished sessions will show up here.</p>
+        <ul id="log"></ul>
+        <div id="logSum"></div>
+      </section>
+
+      <section aria-labelledby="hSet">
+        <h2 id="hSet">Settings</h2>
+        <div class="settings">
+          <label for="optSound">
+            <input type="checkbox" id="optSound" checked>
+            <span>Chime</span>
+            <small>Plays when the question appears and when a break starts.</small>
+          </label>
+          <label for="optDemo">
+            <input type="checkbox" id="optDemo">
+            <span>Demo speed (20x)</span>
+            <small>Lets you see the 10 and 15 minute asks quickly. It waits for your answer and isn't saved to Today.</small>
+          </label>
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var R = 104, CIRC = 2 * Math.PI * R;
+  var KEY = "five-more-minutes-log-v1";
+
+  var S = {
+    phase: "idle",      // idle | focus | break | breakDone
+    paused: false,
+    elapsed: 0,         // focused seconds
+    committed: 300,     // seconds promised so far
+    step: 5,            // current ask, in minutes
+    streak: 0,          // yeses at the current ask
+    prompting: false,
+    declined: false,
+    focusDone: 0,
+    breakTotal: 0,
+    breakElapsed: 0,
+    speed: 1,
+    sound: true
+  };
+  var last = performance.now();
+  var ctx = null;
+  var log = [];
+  var lastPromptShown = false;
+
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function mmss(sec, mode) {
+    sec = Math.max(0, sec);
+    var t = mode === "floor" ? Math.floor(sec + 1e-6) : Math.ceil(sec - 1e-6);
+    return pad(Math.floor(t / 60)) + ":" + pad(t % 60);
+  }
+
+  function loadLog() {
+    try { var v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function saveLog() {
+    try { localStorage.setItem(KEY, JSON.stringify(log.slice(-200))); } catch (e) {}
+  }
+
+  function ensureAudio() {
+    try {
+      if (!ctx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) ctx = new AC(); }
+      if (ctx && ctx.state === "suspended") ctx.resume();
+    } catch (e) {}
+  }
+  function chime(n) {
+    if (!S.sound || !ctx) return;
+    try {
+      for (var i = 0; i < n; i++) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        var t0 = ctx.currentTime + i * 0.22;
+        o.type = "sine"; o.frequency.value = 660 + i * 110;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t0); o.stop(t0 + 0.3);
+      }
+    } catch (e) {}
+  }
+
+  function start() {
+    ensureAudio();
+    S.phase = "focus"; S.paused = false;
+    S.elapsed = 0; S.committed = 300; S.step = 5; S.streak = 0;
+    S.prompting = false; S.declined = false;
+    S.focusDone = 0; S.breakTotal = 0; S.breakElapsed = 0;
+    last = performance.now();
+    render();
+  }
+
+  function answer(yes) {
+    if (!S.prompting) return;
+    S.prompting = false;
+    if (yes) {
+      S.committed += S.step * 60;
+      S.streak += 1;
+      if (S.streak >= 2 && S.step < 15) { S.step += 5; S.streak = 0; }
+    } else {
+      S.declined = true;
+    }
+    render();
+  }
+
+  function beginBreak() {
+    S.focusDone = S.elapsed;
+    S.prompting = false;
+    S.breakTotal = Math.round(S.focusDone * 0.25);
+    S.breakElapsed = 0;
+    S.phase = S.breakTotal < 1 ? "breakDone" : "break";
+    chime(3);
+    if (S.speed === 1 && S.focusDone >= 10) {
+      log.push({ t: Date.now(), f: Math.round(S.focusDone), b: S.breakTotal });
+      saveLog();
+      renderLog();
+    }
+  }
+
+  function tick() {
+    var now = performance.now();
+    var dt = (now - last) / 1000 * S.speed;
+    last = now;
+    if (S.paused) { return; }
+    if (S.phase === "focus") {
+      S.elapsed += dt;
+      if (!S.declined && !S.prompting && S.committed - S.elapsed <= 60) {
+        S.prompting = true; chime(2);
+      }
+      if (S.speed > 1 && S.prompting && S.committed - S.elapsed < 3) {
+        S.elapsed = S.committed - 3;
+      }
+      if (S.elapsed >= S.committed) { S.elapsed = S.committed; beginBreak(); }
+      render();
+    } else if (S.phase === "break") {
+      S.breakElapsed += dt;
+      if (S.breakElapsed >= S.breakTotal) { S.breakElapsed = S.breakTotal; S.phase = "breakDone"; chime(2); }
+      render();
+    }
+  }
+
+  function renderLog() {
+    var ul = $("log");
+    while (ul.firstChild) ul.removeChild(ul.firstChild);
+    var today = new Date().toDateString();
+    var items = log.filter(function (e) { return new Date(e.t).toDateString() === today; });
+    $("logEmpty").hidden = items.length > 0;
+    if (!items.length) { $("logSum").textContent = ""; return; }
+    var total = 0;
+    items.slice().reverse().slice(0, 8).forEach(function (e) {
+      var li = document.createElement("li");
+      var a = document.createElement("span");
+      a.textContent = new Date(e.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      var b = document.createElement("span");
+      b.textContent = mmss(e.f, "floor") + " focus, " + mmss(e.b, "floor") + " break";
+      li.appendChild(a); li.appendChild(b); ul.appendChild(li);
+    });
+    items.forEach(function (e) { total += e.f; });
+    $("logSum").textContent = items.length + (items.length === 1 ? " session, " : " sessions, ") +
+      Math.round(total / 60) + " min focused today";
+  }
+
+  function render() {
+    var ph = S.phase, label, time, meter, prog = 0;
+    $("app").setAttribute("data-phase", ph);
+
+    if (ph === "idle") {
+      label = "Ready"; time = mmss(300); meter = "The first question comes at 04:00."; prog = 0;
+    } else if (ph === "focus") {
+      label = S.paused ? "Paused" : "Focus";
+      time = mmss(S.committed - S.elapsed);
+      meter = S.declined
+        ? "Finishing your last minute, then your break."
+        : mmss(S.elapsed, "floor") + " focused of " + mmss(S.committed, "floor") + " committed";
+      prog = S.elapsed / S.committed;
+    } else if (ph === "break") {
+      label = "Break"; time = mmss(S.breakTotal - S.breakElapsed);
+      meter = "25% of " + mmss(S.focusDone, "floor") + " focused";
+      prog = S.breakElapsed / S.breakTotal;
+    } else {
+      label = "Break over"; time = "00:00";
+      meter = S.breakTotal > 0
+        ? "You focused " + mmss(S.focusDone, "floor") + " and rested " + mmss(S.breakTotal, "floor") + "."
+        : "That was too short to earn a break.";
+      prog = 1;
+    }
+    $("label").textContent = label;
+    $("time").textContent = time;
+    $("meter").textContent = meter;
+
+    var p = Math.min(1, Math.max(0, prog));
+    $("ringProg").style.strokeDasharray = CIRC;
+    $("ringProg").style.strokeDashoffset = CIRC * (1 - p);
+
+    var mark = $("ringMark");
+    var showMark = ph === "focus" && S.committed > 60;
+    mark.style.display = showMark ? "" : "none";
+    if (showMark) {
+      var a = 2 * Math.PI * ((S.committed - 60) / S.committed);
+      mark.setAttribute("cx", (120 + R * Math.sin(a)).toFixed(2));
+      mark.setAttribute("cy", (120 - R * Math.cos(a)).toFixed(2));
+    }
+
+    var showPrompt = ph === "focus" && S.prompting;
+    $("prompt").hidden = !showPrompt;
+    if (showPrompt) {
+      $("promptQ").textContent = "Can you do " + S.step + " more minutes?";
+      $("btnYes").textContent = "Yes, add " + S.step + " minutes";
+      $("promptSub").textContent = S.step < 15
+        ? mmss(S.elapsed, "floor") + " focused. This would be yes " + (S.streak + 1) + " of 2 at " + S.step + " minutes."
+        : mmss(S.elapsed, "floor") + " focused. You're at the top, so every ask is 15 minutes.";
+      $("promptTimer").textContent = "Press Space to say yes. No answer by " + mmss(S.committed - S.elapsed) + " counts as no.";
+    }
+
+    $("btnStart").hidden = ph !== "idle";
+    $("btnPause").hidden = !(ph === "focus" && !S.prompting);
+    $("btnPause").textContent = S.paused ? "Resume" : "Pause";
+    $("btnStop").hidden = !(ph === "focus" && !S.prompting);
+    $("btnSkip").hidden = ph !== "break";
+    $("btnAgain").hidden = ph !== "breakDone";
+    $("actions").hidden = showPrompt;
+
+    if (showPrompt !== lastPromptShown) {
+      lastPromptShown = showPrompt;
+      if (window.desktop) {
+        if (showPrompt) window.desktop.promptStart(); else window.desktop.promptEnd();
+      }
+    }
+
+    var cur = ph === "idle" ? 5 : S.step;
+    var rungs = document.querySelectorAll(".rung");
+    for (var i = 0; i < rungs.length; i++) {
+      var el = rungs[i], st = parseInt(el.getAttribute("data-step"), 10);
+      el.setAttribute("data-state", st < cur ? "done" : st === cur ? "current" : "todo");
+      var pips = el.querySelectorAll(".pips i");
+      for (var j = 0; j < pips.length; j++) {
+        var on = st < cur || (st === cur && ph !== "idle" && j < S.streak);
+        pips[j].className = on ? "on" : "";
+      }
+    }
+
+    $("optDemo").disabled = !(ph === "idle" || ph === "breakDone");
+  }
+
+  $("btnStart").addEventListener("click", start);
+  $("btnAgain").addEventListener("click", start);
+  $("btnYes").addEventListener("click", function () { answer(true); });
+  $("btnNo").addEventListener("click", function () { answer(false); });
+  $("btnPause").addEventListener("click", function () { S.paused = !S.paused; last = performance.now(); render(); });
+  $("btnStop").addEventListener("click", function () { if (S.phase === "focus") { beginBreak(); render(); } });
+  $("btnSkip").addEventListener("click", function () { S.phase = "breakDone"; S.breakTotal = Math.round(S.breakElapsed); render(); });
+  $("optSound").addEventListener("change", function (e) { S.sound = e.target.checked; });
+  $("optDemo").addEventListener("change", function (e) { S.speed = e.target.checked ? 20 : 1; });
+
+  var spaceHeld = false;
+  document.addEventListener("keydown", function (e) {
+    if (e.code !== "Space" && e.key !== " ") return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+    if (S.phase === "focus" && S.prompting) {
+      e.preventDefault();
+      if (!e.repeat) { spaceHeld = true; answer(true); }
+    }
+  });
+  document.addEventListener("keyup", function (e) {
+    if (spaceHeld && (e.code === "Space" || e.key === " ")) {
+      e.preventDefault();
+      spaceHeld = false;
+    }
+  });
+
+  if (window.desktop) window.desktop.onSpace(function () { answer(true); });
+
+  log = loadLog();
+  renderLog();
+  render();
+  setInterval(tick, 200);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "five-more-minutes",
+  "productName": "Five More Minutes",
+  "version": "1.0.0",
+  "description": "A focus timer that asks if you can do five more minutes.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.fivemoreminutes.app",
+    "productName": "Five More Minutes",
+    "files": ["main.js", "preload.js", "index.html"],
+    "win": { "target": "portable" },
+    "mac": { "target": "dmg" },
+    "linux": { "target": "AppImage" }
+  }
+}
